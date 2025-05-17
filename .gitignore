@@ -1,0 +1,17 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+vendor/
+main
+.idea
+
+backups/
+dist/
+bin/
+*.log
+coverage.txt

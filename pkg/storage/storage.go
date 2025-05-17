@@ -1,0 +1,27 @@
+package storage
+
+import (
+	"context"
+	"io"
+)
+
+// Storage is an interface for handling remote file storage.
+type Storage interface {
+	// Put stores a file from the reader to the destination path.
+	Put(ctx context.Context, remotePath string, r io.Reader) error
+
+	// Get retrieves a remote file as a stream. Caller must close the reader.
+	Get(ctx context.Context, remotePath string) (io.ReadCloser, error)
+
+	// List returns all file names under the given directory.
+	List(ctx context.Context, remotePath string) ([]string, error)
+
+	// Delete removes the specified file.
+	Delete(ctx context.Context, remotePath string) error
+
+	// DeleteAll removes all files and directories in a specified path.
+	DeleteAll(ctx context.Context, remotePath string) error
+
+	// Exists checks whether a file exists.
+	Exists(ctx context.Context, remotePath string) (bool, error)
+}
