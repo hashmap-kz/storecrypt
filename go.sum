@@ -43,6 +43,10 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/hashmap-kz/streamcrypt v1.0.1 h1:paLTAR6A4M8hcFo+kkndsQzWBSnSWMbsmM5nCpmP0A0=
 github.com/hashmap-kz/streamcrypt v1.0.1/go.mod h1:9m4wrkqcbvDZiPsO8j9YA2ioltQdHKIaOWUNPj2A8S4=
+github.com/hashmap-kz/streamcrypt v1.1.0 h1:ESaSma5usmJvK+FEnmKeqe7anQCRWC0koAH/nEt9vHA=
+github.com/hashmap-kz/streamcrypt v1.1.0/go.mod h1:R8orQeYj/zFFUzc2gIlQ9foMzalNYE1XS1J5waP6+ZI=
+github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
+github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/kr/fs v0.1.0 h1:Jskdu9ieNAYnjxsi0LbQp1ulIKZV1LAFgK1tWhpZgl8=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
