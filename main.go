@@ -40,6 +40,7 @@ func main() {
 			log.Fatalf("[%s] Put failed: %v", name, err)
 		}
 
+		//nolint:errcheck
 		exists, _ := st.Exists(ctx, logicalPath)
 		fmt.Printf("[%s] Exists: %v\n", name, exists)
 
@@ -47,6 +48,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("[%s] Get failed: %v", name, err)
 		}
+		//nolint:errcheck
 		data, _ := io.ReadAll(rc)
 		rc.Close()
 
