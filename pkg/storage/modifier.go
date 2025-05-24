@@ -50,6 +50,17 @@ func (ts *TransformingStorage) List(ctx context.Context, prefix string) ([]strin
 	return files, nil
 }
 
+func (ts *TransformingStorage) ListInfo(ctx context.Context, prefix string) ([]FileInfo, error) {
+	files, err := ts.Backend.ListInfo(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+	for i := range files {
+		files[i].Path = ts.decodePath(files[i].Path)
+	}
+	return files, nil
+}
+
 func (ts *TransformingStorage) Delete(ctx context.Context, path string) error {
 	return ts.Backend.Delete(ctx, ts.encodePath(path))
 }

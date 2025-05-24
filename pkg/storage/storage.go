@@ -3,7 +3,13 @@ package storage
 import (
 	"context"
 	"io"
+	"time"
 )
+
+type FileInfo struct {
+	Path    string
+	ModTime time.Time
+}
 
 // Storage is an interface for handling remote file storage.
 type Storage interface {
@@ -15,6 +21,9 @@ type Storage interface {
 
 	// List returns all file names under the given directory.
 	List(ctx context.Context, remotePath string) ([]string, error)
+
+	// ListInfo returns all file infos under the given directory.
+	ListInfo(ctx context.Context, remotePath string) ([]FileInfo, error)
 
 	// Delete removes the specified file.
 	Delete(ctx context.Context, remotePath string) error

@@ -110,6 +110,37 @@ func TestStorage_List(t *testing.T) {
 	}
 }
 
+func TestStorage_ListInfo(t *testing.T) {
+	ctx := context.TODO()
+	storages := initStoragesT(t, t.Name())
+
+	for name, store := range storages {
+		t.Run(name, func(t *testing.T) {
+			files := []string{
+				"list/a.txt",
+				"list/b.txt",
+				"list/c.txt",
+			}
+
+			for _, f := range files {
+				err := store.Put(ctx, f, bytes.NewReader([]byte("x")))
+				require.NoError(t, err, "[%s] Put failed for %s", name, f)
+			}
+
+			var listedPaths []string
+
+			listed, err := store.ListInfo(ctx, "list")
+			require.NoError(t, err, "[%s] List failed", name)
+
+			for _, elem := range listed {
+				listedPaths = append(listedPaths, elem.Path)
+			}
+
+			assert.ElementsMatch(t, files, listedPaths, "[%s] Listed files mismatch", name)
+		})
+	}
+}
+
 func TestStorage_Delete(t *testing.T) {
 	ctx := context.TODO()
 	storages := initStoragesT(t, t.Name())
