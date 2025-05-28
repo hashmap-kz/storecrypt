@@ -250,14 +250,11 @@ func (s *s3Storage) deleteAllVersions(ctx context.Context, remotePath string) er
 	return nil
 }
 
-func (s *s3Storage) deleteAllVersionsBulk(ctx context.Context, objectPaths []string) error {
-	var toDelete []s3types.ObjectIdentifier
+func (s *s3Storage) deleteAllVersionsBulk(ctx context.Context, paths []string) error {
+	var objectsToDelete []s3types.ObjectIdentifier
 
-	for _, remotePath := range objectPaths {
-		prefix := s.fullPath(remotePath)
-		if prefix != "" && !endsWithSlash(prefix) {
-			prefix += "/"
-		}
+	for _, path := range paths {
+		prefix := s.fullPath(path)
 
 		paginator := s3.NewListObjectVersionsPaginator(s.client, &s3.ListObjectVersionsInput{
 			Bucket: &s.bucket,
@@ -267,40 +264,42 @@ func (s *s3Storage) deleteAllVersionsBulk(ctx context.Context, objectPaths []str
 		for paginator.HasMorePages() {
 			page, err := paginator.NextPage(ctx)
 			if err != nil {
-				return fmt.Errorf("list object versions for %q: %w", remotePath, err)
+				return fmt.Errorf("list object versions for %q: %w", prefix, err)
 			}
-
 			for i := range page.Versions {
 				version := page.Versions[i]
-				toDelete = append(toDelete, s3types.ObjectIdentifier{
+				objectsToDelete = append(objectsToDelete, s3types.ObjectIdentifier{
 					Key:       version.Key,
 					VersionId: version.VersionId,
 				})
 			}
-			for _, marker := range page.DeleteMarkers {
-				toDelete = append(toDelete, s3types.ObjectIdentifier{
-					Key:       marker.Key,
-					VersionId: marker.VersionId,
+			for i := range page.DeleteMarkers {
+				deleteMarker := page.DeleteMarkers[i]
+				objectsToDelete = append(objectsToDelete, s3types.ObjectIdentifier{
+					Key:       deleteMarker.Key,
+					VersionId: deleteMarker.VersionId,
 				})
 			}
 		}
 	}
 
-	for i := 0; i < len(toDelete); i += 1000 {
-		end := i + 1000
-		if end > len(toDelete) {
-			end = len(toDelete)
+	// Split into chunks of 1000 due to S3 limit per DeleteObjects request
+	const batchSize = 1000
+	for i := 0; i < len(objectsToDelete); i += batchSize {
+		end := i + batchSize
+		if end > len(objectsToDelete) {
+			end = len(objectsToDelete)
 		}
 
 		_, err := s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
 			Bucket: &s.bucket,
 			Delete: &s3types.Delete{
-				Objects: toDelete[i:end],
+				Objects: objectsToDelete[i:end],
 				Quiet:   aws.Bool(true),
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("delete versions: %w", err)
+			return fmt.Errorf("delete objects batch %d–%d: %w", i, end, err)
 		}
 	}
 

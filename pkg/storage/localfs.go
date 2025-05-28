@@ -140,9 +140,10 @@ func (l *localStorage) DeleteAll(_ context.Context, remotePath string) error {
 	return nil
 }
 
-func (l *localStorage) DeleteAllBulk(ctx context.Context, paths []string) error {
+func (l *localStorage) DeleteAllBulk(_ context.Context, paths []string) error {
 	for i := range paths {
-		err := l.DeleteAll(ctx, paths[i])
+		fullPath := l.fullPath(paths[i])
+		err := os.RemoveAll(fullPath)
 		if err != nil {
 			return err
 		}
