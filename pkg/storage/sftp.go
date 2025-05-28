@@ -148,6 +148,21 @@ func (s *sftpStorage) DeleteAll(_ context.Context, remotePath string) error {
 	return nil
 }
 
+func (s *sftpStorage) DeleteAllBulk(_ context.Context, paths []string) error {
+	for i := range paths {
+		fullPath := s.fullPath(paths[i])
+		err := s.client.RemoveAll(fullPath)
+		if err != nil {
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "file does not exist") {
+				return nil
+			}
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *sftpStorage) Exists(_ context.Context, remotePath string) (bool, error) {
 	fullPath := s.fullPath(remotePath)
 	info, err := s.client.Stat(fullPath)
