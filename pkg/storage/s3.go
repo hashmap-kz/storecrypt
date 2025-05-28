@@ -110,18 +110,20 @@ func (s *s3Storage) ListInfo(ctx context.Context, remotePath string) ([]FileInfo
 		Prefix: aws.String(fullPath),
 	})
 
-	// Iterate over pages of results
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get page: %w", err)
 		}
 
+		// Iterate over pages of results
 		for _, obj := range page.Contents {
-			rel, err := filepath.Rel(s.prefix, *obj.Key)
-			if err != nil {
-				return nil, err
-			}
+			key := aws.ToString(obj.Key)
+
+			// Normalize S3 keys using strings, not filepath
+			rel := strings.TrimPrefix(key, s.prefix)
+			rel = strings.TrimPrefix(rel, "/")
+
 			objects = append(objects, FileInfo{
 				Path:    rel,
 				ModTime: aws.ToTime(obj.LastModified),
