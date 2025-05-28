@@ -69,6 +69,13 @@ func (ts *TransformingStorage) DeleteAll(ctx context.Context, path string) error
 	return ts.Backend.DeleteAll(ctx, path)
 }
 
+func (ts *TransformingStorage) DeleteAllBulk(ctx context.Context, paths []string) error {
+	for i := range paths {
+		paths[i] = ts.encodePath(paths[i])
+	}
+	return ts.Backend.DeleteAllBulk(ctx, paths)
+}
+
 func (ts *TransformingStorage) Exists(ctx context.Context, path string) (bool, error) {
 	return ts.Backend.Exists(ctx, ts.encodePath(path))
 }
