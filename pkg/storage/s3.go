@@ -27,7 +27,7 @@ func NewS3Storage(client *s3.Client, bucket, prefix string) Storage {
 	return &s3Storage{
 		client:   client,
 		bucket:   bucket,
-		prefix:   strings.TrimSuffix(prefix, "/"),
+		prefix:   strings.TrimPrefix(prefix, "/"),
 		uploader: CreateUploader(client, 5242880, 2), // TODO:cfg
 	}
 }
