@@ -146,6 +146,10 @@ func (s *s3Storage) DeleteAll(ctx context.Context, remotePath string) error {
 	return s.deleteAllVersions(ctx, remotePath)
 }
 
+func (s *s3Storage) DeleteAllBulk(ctx context.Context, paths []string) error {
+	return s.deleteAllVersionsBulk(ctx, paths)
+}
+
 //nolint:unused
 func (s *s3Storage) deleteAll(ctx context.Context, remotePath string) error {
 	prefix := s.fullPath(remotePath)
@@ -222,6 +226,63 @@ func (s *s3Storage) deleteAllVersions(ctx context.Context, remotePath string) er
 				Key:       marker.Key,
 				VersionId: marker.VersionId,
 			})
+		}
+	}
+
+	for i := 0; i < len(toDelete); i += 1000 {
+		end := i + 1000
+		if end > len(toDelete) {
+			end = len(toDelete)
+		}
+
+		_, err := s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: &s.bucket,
+			Delete: &s3types.Delete{
+				Objects: toDelete[i:end],
+				Quiet:   aws.Bool(true),
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("delete versions: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *s3Storage) deleteAllVersionsBulk(ctx context.Context, objectPaths []string) error {
+	var toDelete []s3types.ObjectIdentifier
+
+	for _, remotePath := range objectPaths {
+		prefix := s.fullPath(remotePath)
+		if prefix != "" && !endsWithSlash(prefix) {
+			prefix += "/"
+		}
+
+		paginator := s3.NewListObjectVersionsPaginator(s.client, &s3.ListObjectVersionsInput{
+			Bucket: &s.bucket,
+			Prefix: &prefix,
+		})
+
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
+			if err != nil {
+				return fmt.Errorf("list object versions for %q: %w", remotePath, err)
+			}
+
+			for i := range page.Versions {
+				version := page.Versions[i]
+				toDelete = append(toDelete, s3types.ObjectIdentifier{
+					Key:       version.Key,
+					VersionId: version.VersionId,
+				})
+			}
+			for _, marker := range page.DeleteMarkers {
+				toDelete = append(toDelete, s3types.ObjectIdentifier{
+					Key:       marker.Key,
+					VersionId: marker.VersionId,
+				})
+			}
 		}
 	}
 

@@ -148,6 +148,16 @@ func (s *sftpStorage) DeleteAll(_ context.Context, remotePath string) error {
 	return nil
 }
 
+func (s *sftpStorage) DeleteAllBulk(ctx context.Context, paths []string) error {
+	for i := range paths {
+		err := s.DeleteAll(ctx, paths[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *sftpStorage) Exists(_ context.Context, remotePath string) (bool, error) {
 	fullPath := s.fullPath(remotePath)
 	info, err := s.client.Stat(fullPath)
