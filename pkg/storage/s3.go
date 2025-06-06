@@ -325,6 +325,40 @@ func (s *s3Storage) Exists(ctx context.Context, remotePath string) (bool, error)
 	return true, nil // S3 has no dirs, so it's a valid file
 }
 
+func (s *s3Storage) ListTopLevelDirs(ctx context.Context, prefix string) (map[string]bool, error) {
+	remotePath := s.fullPath(prefix)
+	if !endsWithSlash(remotePath) {
+		remotePath += "/"
+	}
+
+	input := &s3.ListObjectsV2Input{
+		Bucket:    aws.String(s.bucket),
+		Delimiter: aws.String("/"), // Groups results by prefix (like top-level directories)
+		Prefix:    aws.String(remotePath),
+	}
+
+	output, err := s.client.ListObjectsV2(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects in bucket: %w", err)
+	}
+
+	// Extract top-level prefixes (directories)
+	prefixes := make(map[string]bool)
+	for _, prefix := range output.CommonPrefixes {
+		if prefix.Prefix == nil {
+			continue
+		}
+		prefixClean := strings.TrimSuffix(*prefix.Prefix, "/")
+		rel, err := filepath.Rel(s.prefix, prefixClean)
+		if err != nil {
+			return nil, err
+		}
+		prefixes[filepath.ToSlash(rel)] = true
+	}
+
+	return prefixes, nil
+}
+
 func endsWithSlash(s string) bool {
 	return s != "" && s[len(s)-1] == '/'
 }

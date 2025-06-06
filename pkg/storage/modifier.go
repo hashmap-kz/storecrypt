@@ -80,6 +80,10 @@ func (ts *TransformingStorage) Exists(ctx context.Context, path string) (bool, e
 	return ts.Backend.Exists(ctx, ts.encodePath(path))
 }
 
+func (ts *TransformingStorage) ListTopLevelDirs(ctx context.Context, prefix string) (map[string]bool, error) {
+	return ts.Backend.ListTopLevelDirs(ctx, prefix)
+}
+
 // compress/encrypt wrappers
 
 func (ts *TransformingStorage) wrapWrite(in io.Reader) (io.Reader, error) {

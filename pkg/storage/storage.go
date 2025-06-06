@@ -36,4 +36,7 @@ type Storage interface {
 
 	// Exists checks whether a file exists.
 	Exists(ctx context.Context, remotePath string) (bool, error)
+
+	// ListTopLevelDirs retrieves ONLY directories at a given prefix path.
+	ListTopLevelDirs(ctx context.Context, prefix string) (map[string]bool, error)
 }

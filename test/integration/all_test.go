@@ -110,6 +110,30 @@ func TestStorage_List(t *testing.T) {
 	}
 }
 
+func TestStorage_ListTopLevel(t *testing.T) {
+	ctx := context.TODO()
+	storages := initStoragesT(t, t.Name())
+
+	for name, store := range storages {
+		t.Run(name, func(t *testing.T) {
+			files := []string{
+				"list/a/b/c/d/e/a.txt",
+				"list/1/2/3/4/5/6/7/8/b.txt",
+				"list/1/2/c.txt",
+			}
+
+			for _, f := range files {
+				err := store.Put(ctx, f, bytes.NewReader([]byte("x")))
+				require.NoError(t, err, "[%s] Put failed for %s", name, f)
+			}
+
+			listed, err := store.ListTopLevelDirs(ctx, "list/1")
+			require.NoError(t, err, "[%s] ListTopLevel failed", name)
+			assert.Equal(t, map[string]bool{"list/1/2": true}, listed, "[%s] Listed files mismatch", name)
+		})
+	}
+}
+
 func TestStorage_ListInfo(t *testing.T) {
 	ctx := context.TODO()
 	storages := initStoragesT(t, t.Name())

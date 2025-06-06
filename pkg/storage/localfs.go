@@ -167,3 +167,25 @@ func (l *localStorage) Exists(_ context.Context, remotePath string) (bool, error
 	}
 	return false, nil
 }
+
+func (l *localStorage) ListTopLevelDirs(_ context.Context, prefix string) (map[string]bool, error) {
+	fullPath := l.fullPath(prefix)
+	result := make(map[string]bool)
+
+	entries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirFullPath := filepath.ToSlash(filepath.Join(fullPath, entry.Name()))
+			rel, err := filepath.Rel(l.baseDir, dirFullPath)
+			if err != nil {
+				return nil, err
+			}
+			result[filepath.ToSlash(rel)] = true
+		}
+	}
+	return result, nil
+}
