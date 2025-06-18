@@ -121,6 +121,10 @@ func (l *localStorage) Delete(_ context.Context, remotePath string) error {
 	return os.Remove(l.fullPath(remotePath))
 }
 
+func (l *localStorage) DeleteDir(_ context.Context, remotePath string) error {
+	return os.RemoveAll(l.fullPath(remotePath))
+}
+
 func (l *localStorage) DeleteAll(_ context.Context, remotePath string) error {
 	fullPath := l.fullPath(remotePath)
 

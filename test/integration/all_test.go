@@ -213,6 +213,32 @@ func TestStorage_DeleteAll(t *testing.T) {
 	}
 }
 
+func TestStorage_DeleteDir(t *testing.T) {
+	ctx := context.TODO()
+	storages := initStoragesT(t, t.Name())
+
+	for name, store := range storages {
+		t.Run(name, func(t *testing.T) {
+			files := []string{
+				"bulk/f1.txt",
+				"bulk/f2.txt",
+				"bulk/f3.txt",
+			}
+
+			for _, f := range files {
+				err := store.Put(ctx, f, bytes.NewReader([]byte("bulk content")))
+				require.NoError(t, err, "[%s] Put failed for %s", name, f)
+			}
+
+			err := store.DeleteDir(ctx, "bulk")
+			require.NoError(t, err, "[%s] DeleteDir failed", name)
+			ex, err := store.Exists(ctx, "bulk")
+			assert.NoError(t, err)
+			assert.False(t, ex)
+		})
+	}
+}
+
 func TestStorage_DeleteAllBulk(t *testing.T) {
 	ctx := context.TODO()
 	storages := initStoragesT(t, t.Name())
