@@ -65,6 +65,10 @@ func (ts *TransformingStorage) Delete(ctx context.Context, path string) error {
 	return ts.Backend.Delete(ctx, ts.encodePath(path))
 }
 
+func (ts *TransformingStorage) DeleteDir(ctx context.Context, path string) error {
+	return ts.Backend.DeleteDir(ctx, path)
+}
+
 func (ts *TransformingStorage) DeleteAll(ctx context.Context, path string) error {
 	return ts.Backend.DeleteAll(ctx, path)
 }

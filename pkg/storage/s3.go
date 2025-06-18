@@ -148,54 +148,16 @@ func (s *s3Storage) DeleteAll(ctx context.Context, remotePath string) error {
 	return s.deleteAllVersions(ctx, remotePath)
 }
 
-func (s *s3Storage) DeleteAllBulk(ctx context.Context, paths []string) error {
-	return s.deleteAllVersionsBulk(ctx, paths)
+func (s *s3Storage) DeleteDir(ctx context.Context, remotePath string) error {
+	err := s.deleteAllVersions(ctx, remotePath)
+	if err != nil {
+		return err
+	}
+	return s.Delete(ctx, remotePath)
 }
 
-//nolint:unused
-func (s *s3Storage) deleteAll(ctx context.Context, remotePath string) error {
-	prefix := s.fullPath(remotePath)
-	if prefix != "" && !endsWithSlash(prefix) {
-		prefix += "/"
-	}
-
-	// List objects with that prefix
-	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
-		Bucket: &s.bucket,
-		Prefix: &prefix,
-	})
-
-	var objectsToDelete []s3types.ObjectIdentifier
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			return fmt.Errorf("listing s3 objects: %w", err)
-		}
-		for _, obj := range page.Contents {
-			objectsToDelete = append(objectsToDelete, s3types.ObjectIdentifier{Key: obj.Key})
-		}
-	}
-
-	// Batch delete (max 1000 per request)
-	for i := 0; i < len(objectsToDelete); i += 1000 {
-		end := i + 1000
-		if end > len(objectsToDelete) {
-			end = len(objectsToDelete)
-		}
-
-		_, err := s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-			Bucket: &s.bucket,
-			Delete: &s3types.Delete{
-				Objects: objectsToDelete[i:end],
-				Quiet:   aws.Bool(true),
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("deleting s3 objects: %w", err)
-		}
-	}
-
-	return nil
+func (s *s3Storage) DeleteAllBulk(ctx context.Context, paths []string) error {
+	return s.deleteAllVersionsBulk(ctx, paths)
 }
 
 func (s *s3Storage) deleteAllVersions(ctx context.Context, remotePath string) error {

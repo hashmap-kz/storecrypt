@@ -122,6 +122,10 @@ func (s *sftpStorage) Delete(_ context.Context, remotePath string) error {
 	return s.client.Remove(s.fullPath(remotePath))
 }
 
+func (s *sftpStorage) DeleteDir(_ context.Context, remotePath string) error {
+	return s.client.RemoveAll(s.fullPath(remotePath))
+}
+
 func (s *sftpStorage) DeleteAll(_ context.Context, remotePath string) error {
 	fullPath := s.fullPath(remotePath)
 
