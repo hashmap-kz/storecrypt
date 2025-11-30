@@ -9,7 +9,7 @@ services:
       - "2323:22"
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio
     ports:
       - "9000:9000" # S3 API
@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
 
   createbuckets:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
         condition: service_healthy
