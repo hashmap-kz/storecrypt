@@ -20,7 +20,7 @@ type CodecPair struct {
 }
 
 // Algorithms are where you plug in concrete implementations.
-// The variants (plain, .gz, .zst, .gz.aes, .zst.aes) are
+// The variants (plain, .gz, .zst, .gz.aes, .zst.aes, .aes) are
 // defined statically in this file.
 type Algorithms struct {
 	Gzip *CodecPair    // nil if gzip is not configured
@@ -39,7 +39,7 @@ type Algorithms struct {
 type VariadicStorage struct {
 	Backend  Storage
 	alg      Algorithms
-	writeExt string // "", ".gz", ".zst", ".gz.aes", ".zst.aes"
+	writeExt string // "", ".gz", ".zst", ".gz.aes", ".zst.aes", ".aes"
 }
 
 var _ Storage = (*VariadicStorage)(nil)
@@ -105,7 +105,7 @@ func (vs *VariadicStorage) supportedExts() []string {
 		exts = append(exts, ".zst")
 	}
 	if vs.alg.AES != nil {
-		exts = append(exts, ".aes") // <-- NEW: AES-only variant
+		exts = append(exts, ".aes")
 	}
 	// plain always last
 	exts = append(exts, "")
