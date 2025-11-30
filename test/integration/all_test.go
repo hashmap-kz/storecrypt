@@ -19,33 +19,95 @@ import (
 )
 
 func impls(dir, subpath string) map[string]storage.Storage {
-	localStorage, err := storage.NewLocal(&storage.LocalStorageOpts{
-		BaseDir:      filepath.Join(dir, subpath),
-		FsyncOnWrite: false,
-	})
-	if err != nil {
-		log.Fatal(err)
+	// Helpers to create *isolated* backends per storage name.
+	mkLocal := func(name string) storage.Storage {
+		s, err := storage.NewLocal(&storage.LocalStorageOpts{
+			BaseDir:      filepath.Join(dir, subpath, name),
+			FsyncOnWrite: false,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		return s
+	}
+
+	mkS3 := func(name string) storage.Storage {
+		return storage.NewS3Storage(
+			createS3Client(),
+			"backups",
+			filepath.Join(subpath, name),
+		)
+	}
+
+	mkSFTP := func(name string) storage.Storage {
+		return storage.NewSFTPStorage(
+			createSftpClient(),
+			filepath.Join(subpath, name),
+		)
+	}
+
+	// Algorithms: tell VariadicStorage what we *can* do.
+	alg := storage.Algorithms{
+		Gzip: &storage.CodecPair{
+			Compressor:   codec.GzipCompressor{},
+			Decompressor: codec.GzipDecompressor{},
+		},
+		Zstd: &storage.CodecPair{
+			Compressor:   codec.ZstdCompressor{},
+			Decompressor: codec.ZstdDecompressor{},
+		},
+		AES: aesgcm.NewChunkedGCMCrypter("password"),
+	}
+
+	newVariadic := func(backend storage.Storage, writeExt string) storage.Storage {
+		st, err := storage.NewVariadicStorage(backend, alg, writeExt)
+		if err != nil {
+			log.Fatalf("failed to create VariadicStorage: %v", err)
+		}
+		return st
 	}
 
 	return map[string]storage.Storage{
+		// transforming – each with its own backend namespace
 		"local": &storage.TransformingStorage{
-			Backend:      localStorage,
+			Backend:      mkLocal("local"),
 			Crypter:      aesgcm.NewChunkedGCMCrypter("password"),
 			Compressor:   codec.GzipCompressor{},
 			Decompressor: codec.GzipDecompressor{},
 		},
 		"s3": &storage.TransformingStorage{
-			Backend:      storage.NewS3Storage(createS3Client(), "backups", subpath),
+			Backend:      mkS3("s3"),
 			Crypter:      aesgcm.NewChunkedGCMCrypter("password"),
 			Compressor:   codec.GzipCompressor{},
 			Decompressor: codec.GzipDecompressor{},
 		},
 		"sftp": &storage.TransformingStorage{
-			Backend:      storage.NewSFTPStorage(createSftpClient(), subpath),
+			Backend:      mkSFTP("sftp"),
 			Crypter:      aesgcm.NewChunkedGCMCrypter("password"),
 			Compressor:   codec.GzipCompressor{},
 			Decompressor: codec.GzipDecompressor{},
 		},
+
+		// dynamic – **each has its own backend** too
+		"dyn-local-gz.aes": newVariadic(mkLocal("dyn-local-gz.aes"), ".gz.aes"),
+		"dyn-s3-gz.aes":    newVariadic(mkS3("dyn-s3-gz.aes"), ".gz.aes"),
+		"dyn-sftp-gz.aes":  newVariadic(mkSFTP("dyn-sftp-gz.aes"), ".gz.aes"),
+
+		"dyn-local-gz": newVariadic(mkLocal("dyn-local-gz"), ".gz"),
+		"dyn-s3-gz":    newVariadic(mkS3("dyn-s3-gz"), ".gz"),
+		"dyn-sftp-gz":  newVariadic(mkSFTP("dyn-sftp-gz"), ".gz"),
+
+		"dyn-local": newVariadic(mkLocal("dyn-local"), ""),
+		"dyn-s3":    newVariadic(mkS3("dyn-s3"), ""),
+		"dyn-sftp":  newVariadic(mkSFTP("dyn-sftp"), ""),
+
+		"dyn-local-zst": newVariadic(mkLocal("dyn-local-zst"), ".zst"),
+		"dyn-s3-zst":    newVariadic(mkS3("dyn-s3-zst"), ".zst"),
+		"dyn-sftp-zst":  newVariadic(mkSFTP("dyn-sftp-zst"), ".zst"),
+
+		"dyn-local-aes": newVariadic(mkLocal("dyn-local-aes"), ".aes"),
+		"dyn-s3-aes":    newVariadic(mkS3("dyn-s3-aes"), ".aes"),
+		"dyn-sftp-aes":  newVariadic(mkSFTP("dyn-sftp-aes"), ".aes"),
 	}
 }
 
