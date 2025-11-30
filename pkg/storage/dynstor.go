@@ -13,28 +13,13 @@ import (
 	"github.com/hashmap-kz/streamcrypt/pkg/pipe"
 )
 
-// Storage is assumed to be your existing interface, for reference:
-//
-// type Storage interface {
-// 	Put(ctx context.Context, path string, r io.Reader) error
-// 	Get(ctx context.Context, path string) (io.ReadCloser, error)
-// 	List(ctx context.Context, prefix string) ([]string, error)
-// 	ListInfo(ctx context.Context, prefix string) ([]FileInfo, error)
-// 	Delete(ctx context.Context, path string) error
-// 	DeleteDir(ctx context.Context, path string) error
-// 	DeleteAll(ctx context.Context, path string) error
-// 	DeleteAllBulk(ctx context.Context, paths []string) error
-// 	Exists(ctx context.Context, path string) (bool, error)
-// 	ListTopLevelDirs(ctx context.Context, prefix string) (map[string]bool, error)
-// }
-
 // CodecPair groups a compressor and its matching decompressor.
 type CodecPair struct {
 	Compressor   codec.Compressor
 	Decompressor codec.Decompressor
 }
 
-// Algorithms is where you plug in concrete implementations.
+// Algorithms are where you plug in concrete implementations.
 // The variants (plain, .gz, .zst, .gz.aes, .zst.aes) are
 // defined statically in this file.
 type Algorithms struct {
@@ -94,6 +79,8 @@ func (vs *VariadicStorage) isSupportedWriteExt(ext string) bool {
 		return vs.alg.Gzip != nil && vs.alg.AES != nil
 	case ".zst.aes":
 		return vs.alg.Zstd != nil && vs.alg.AES != nil
+	case ".aes": // <-- NEW: AES-only is allowed if we have AES
+		return vs.alg.AES != nil
 	default:
 		return false
 	}
@@ -116,6 +103,9 @@ func (vs *VariadicStorage) supportedExts() []string {
 	}
 	if vs.alg.Zstd != nil {
 		exts = append(exts, ".zst")
+	}
+	if vs.alg.AES != nil {
+		exts = append(exts, ".aes") // <-- NEW: AES-only variant
 	}
 	// plain always last
 	exts = append(exts, "")

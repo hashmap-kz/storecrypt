@@ -101,13 +101,13 @@ func impls(dir, subpath string) map[string]storage.Storage {
 		"dyn-s3":    newVariadic(mkS3("dyn-s3"), ""),
 		"dyn-sftp":  newVariadic(mkSFTP("dyn-sftp"), ""),
 
-		// "dyn-local-zst": newVariadic(mkLocal("dyn-local-zst"), ".zst"),
-		// "dyn-s3-zst":    newVariadic(mkS3("dyn-s3-zst"), ".zst"),
-		// "dyn-sftp-zst":  newVariadic(mkSFTP("dyn-sftp-zst"), ".zst"),
+		"dyn-local-zst": newVariadic(mkLocal("dyn-local-zst"), ".zst"),
+		"dyn-s3-zst":    newVariadic(mkS3("dyn-s3-zst"), ".zst"),
+		"dyn-sftp-zst":  newVariadic(mkSFTP("dyn-sftp-zst"), ".zst"),
 
-		//"dyn-local-aes": newVariadic(mkLocal("dyn-local-aes"), ".aes"),
-		//"dyn-s3-aes":    newVariadic(mkS3("dyn-s3-aes"), ".aes"),
-		//"dyn-sftp-aes":  newVariadic(mkSFTP("dyn-sftp-aes"), ".aes"),
+		"dyn-local-aes": newVariadic(mkLocal("dyn-local-aes"), ".aes"),
+		"dyn-s3-aes":    newVariadic(mkS3("dyn-s3-aes"), ".aes"),
+		"dyn-sftp-aes":  newVariadic(mkSFTP("dyn-sftp-aes"), ".aes"),
 	}
 }
 
