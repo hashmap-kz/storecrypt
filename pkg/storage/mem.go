@@ -70,11 +70,12 @@ func (s *InMemoryStorage) ListInfo(_ context.Context, path string) ([]FileInfo, 
 	var infos []FileInfo
 	prefix := strings.TrimSuffix(path, "/") + "/"
 
-	for name := range s.Files {
+	for name, data := range s.Files {
 		if strings.HasPrefix(name, prefix) {
 			infos = append(infos, FileInfo{
 				Path:    name,
 				ModTime: time.Now(),
+				Size:    int64(len(data)),
 			})
 		}
 	}

@@ -111,6 +111,7 @@ func (s *sftpStorage) ListInfo(_ context.Context, remotePath string) ([]FileInfo
 			result = append(result, FileInfo{
 				Path:    rel,
 				ModTime: stat.ModTime(),
+				Size:    stat.Size(),
 			})
 		}
 	}

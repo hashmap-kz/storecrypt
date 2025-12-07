@@ -111,6 +111,7 @@ func (l *localStorage) ListInfo(_ context.Context, remotePath string) ([]FileInf
 		result = append(result, FileInfo{
 			Path:    filepath.ToSlash(rel),
 			ModTime: stat.ModTime(),
+			Size:    stat.Size(),
 		})
 		return nil
 	})

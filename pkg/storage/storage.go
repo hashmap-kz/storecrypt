@@ -9,6 +9,7 @@ import (
 type FileInfo struct {
 	Path    string
 	ModTime time.Time
+	Size    int64
 }
 
 // Storage is an interface for handling remote file storage.

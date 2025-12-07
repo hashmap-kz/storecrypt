@@ -127,6 +127,7 @@ func (s *s3Storage) ListInfo(ctx context.Context, remotePath string) ([]FileInfo
 			objects = append(objects, FileInfo{
 				Path:    rel,
 				ModTime: aws.ToTime(obj.LastModified),
+				Size:    aws.ToInt64(obj.Size),
 			})
 		}
 	}
