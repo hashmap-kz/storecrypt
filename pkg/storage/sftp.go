@@ -200,3 +200,24 @@ func (s *sftpStorage) ListTopLevelDirs(_ context.Context, prefix string) (map[st
 	}
 	return result, nil
 }
+
+func (s *sftpStorage) Rename(_ context.Context, oldRemotePath, newRemotePath string) error {
+	oldFull := s.fullPath(oldRemotePath)
+	newFull := s.fullPath(newRemotePath)
+
+	if oldFull == newFull {
+		return nil
+	}
+
+	// Ensure destination directory exists
+	dir := path.Dir(newFull)
+	if err := s.client.MkdirAll(dir); err != nil {
+		return fmt.Errorf("mkdir dest dir %q: %w", dir, err)
+	}
+
+	if err := s.client.Rename(oldFull, newFull); err != nil {
+		return fmt.Errorf("sftp rename %q -> %q: %w", oldFull, newFull, err)
+	}
+
+	return nil
+}

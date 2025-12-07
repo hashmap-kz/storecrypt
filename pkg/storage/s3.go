@@ -321,6 +321,38 @@ func (s *s3Storage) ListTopLevelDirs(ctx context.Context, prefix string) (map[st
 	return prefixes, nil
 }
 
+func (s *s3Storage) Rename(ctx context.Context, oldRemotePath, newRemotePath string) error {
+	srcKey := s.fullPath(oldRemotePath)
+	dstKey := s.fullPath(newRemotePath)
+
+	if srcKey == dstKey {
+		return nil
+	}
+
+	// Copy source object to destination key
+	copySource := s.bucket + "/" + srcKey
+
+	_, err := s.client.CopyObject(ctx, &s3.CopyObjectInput{
+		Bucket:     aws.String(s.bucket),
+		CopySource: aws.String(copySource),
+		Key:        aws.String(dstKey),
+	})
+	if err != nil {
+		return fmt.Errorf("copy object %q -> %q: %w", srcKey, dstKey, err)
+	}
+
+	// Delete source object (only latest version if bucket is versioned)
+	_, err = s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(srcKey),
+	})
+	if err != nil {
+		return fmt.Errorf("delete source after copy %q: %w", srcKey, err)
+	}
+
+	return nil
+}
+
 func endsWithSlash(s string) bool {
 	return s != "" && s[len(s)-1] == '/'
 }

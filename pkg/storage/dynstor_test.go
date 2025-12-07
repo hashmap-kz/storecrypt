@@ -135,6 +135,10 @@ func (m *memoryStorage) ListTopLevelDirs(_ context.Context, prefix string) (map[
 	return out, nil
 }
 
+func (m *memoryStorage) Rename(_ context.Context, _, _ string) error {
+	panic("implement me")
+}
+
 // -----------------------------------------------------------------------------
 // NewVariadicStorage / isSupportedWriteExt
 // -----------------------------------------------------------------------------

@@ -162,3 +162,37 @@ func (s *InMemoryStorage) ListTopLevelDirs(ctx context.Context, prefix string) (
 
 	return result, nil
 }
+
+func (s *InMemoryStorage) Rename(ctx context.Context, oldRemotePath, newRemotePath string) error {
+	if oldRemotePath == newRemotePath {
+		return nil
+	}
+
+	// Quick ctx check before locking
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check again after we hold the lock in case caller cancels while waiting
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	data, ok := s.Files[oldRemotePath]
+	if !ok {
+		return errors.New("file not found")
+	}
+
+	// Move entry under new key
+	s.Files[newRemotePath] = data
+	delete(s.Files, oldRemotePath)
+
+	return nil
+}

@@ -193,3 +193,19 @@ func (l *localStorage) ListTopLevelDirs(_ context.Context, prefix string) (map[s
 	}
 	return result, nil
 }
+
+func (l *localStorage) Rename(_ context.Context, oldRemotePath, newRemotePath string) error {
+	oldFull := l.fullPath(oldRemotePath)
+	newFull := l.fullPath(newRemotePath)
+
+	if oldFull == newFull {
+		return nil
+	}
+
+	// Ensure target directory exists
+	if err := os.MkdirAll(filepath.Dir(newFull), 0o750); err != nil {
+		return err
+	}
+
+	return os.Rename(oldFull, newFull)
+}
