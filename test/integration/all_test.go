@@ -455,7 +455,7 @@ func TestStorage_RenameSamePathNoop(t *testing.T) {
 	}
 }
 
-func TestStorage_HighLoad(t *testing.T) {
+func TestStorage_HighLoad100(t *testing.T) {
 	ctx := context.TODO()
 	storages := initStoragesT(t, t.Name())
 
