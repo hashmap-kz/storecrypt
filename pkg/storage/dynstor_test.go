@@ -3,10 +3,8 @@ package storage
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"io/fs"
-	"sort"
 	"strings"
 	"testing"
 
@@ -15,129 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// -----------------------------------------------------------------------------
-// In-memory backend for unit tests
-// -----------------------------------------------------------------------------
-
-type memoryStorage struct {
-	data map[string][]byte
-	dirs map[string]bool
-}
-
-func newMemoryStorage() *memoryStorage {
-	return &memoryStorage{
-		data: make(map[string][]byte),
-		dirs: make(map[string]bool),
-	}
-}
-
-func (m *memoryStorage) Put(_ context.Context, path string, r io.Reader) error {
-	if m.data == nil {
-		m.data = make(map[string][]byte)
-	}
-	if m.dirs == nil {
-		m.dirs = make(map[string]bool)
-	}
-
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	m.data[path] = b
-
-	// naive directory tracking
-	parts := strings.Split(path, "/")
-	for i := 1; i < len(parts); i++ {
-		prefix := strings.Join(parts[:i], "/")
-		m.dirs[prefix] = true
-	}
-	return nil
-}
-
-func (m *memoryStorage) Get(_ context.Context, path string) (io.ReadCloser, error) {
-	b, ok := m.data[path]
-	if !ok {
-		return nil, fs.ErrNotExist
-	}
-	return io.NopCloser(bytes.NewReader(b)), nil
-}
-
-func (m *memoryStorage) List(_ context.Context, prefix string) ([]string, error) {
-	var out []string
-	for k := range m.data {
-		if strings.HasPrefix(k, prefix) {
-			out = append(out, k)
-		}
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-func (m *memoryStorage) ListInfo(_ context.Context, prefix string) ([]FileInfo, error) {
-	var out []FileInfo
-	for k := range m.data {
-		if strings.HasPrefix(k, prefix) {
-			out = append(out, FileInfo{Path: k})
-		}
-	}
-	return out, nil
-}
-
-func (m *memoryStorage) Delete(_ context.Context, path string) error {
-	if _, ok := m.data[path]; !ok {
-		return fs.ErrNotExist
-	}
-	delete(m.data, path)
-	return nil
-}
-
-func (m *memoryStorage) DeleteDir(_ context.Context, path string) error {
-	for k := range m.data {
-		if k == path || strings.HasPrefix(k, path+"/") {
-			delete(m.data, k)
-		}
-	}
-	return nil
-}
-
-func (m *memoryStorage) DeleteAll(_ context.Context, prefix string) error {
-	for k := range m.data {
-		if strings.HasPrefix(k, prefix) {
-			delete(m.data, k)
-		}
-	}
-	return nil
-}
-
-func (m *memoryStorage) DeleteAllBulk(ctx context.Context, paths []string) error {
-	for _, p := range paths {
-		if err := m.Delete(ctx, p); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *memoryStorage) Exists(_ context.Context, path string) (bool, error) {
-	_, ok := m.data[path]
-	return ok, nil
-}
-
-func (m *memoryStorage) ListTopLevelDirs(_ context.Context, prefix string) (map[string]bool, error) {
-	// very naive: return any tracked dir starting with prefix
-	out := make(map[string]bool)
-	for k := range m.dirs {
-		if strings.HasPrefix(k, prefix) {
-			out[k] = true
-		}
-	}
-	return out, nil
-}
-
-func (m *memoryStorage) Rename(_ context.Context, _, _ string) error {
-	panic("implement me")
-}
 
 // -----------------------------------------------------------------------------
 // NewVariadicStorage / isSupportedWriteExt
@@ -179,7 +54,7 @@ func TestNewVariadicStorage_ValidationMatrix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			backend := newMemoryStorage()
+			backend := NewInMemoryStorage()
 			vs, err := NewVariadicStorage(backend, tt.alg, tt.writeExt)
 			if tt.ok {
 				require.NoError(t, err)
@@ -337,7 +212,7 @@ func TestEncodeDecodePath_RoundTrip(t *testing.T) {
 
 	for _, ext := range exts {
 		t.Run("writeExt="+ext, func(t *testing.T) {
-			vs, err := NewVariadicStorage(newMemoryStorage(), alg, ext)
+			vs, err := NewVariadicStorage(NewInMemoryStorage(), alg, ext)
 			if ext == ".gz" || ext == ".zst" || ext == ".aes" || ext == ".gz.aes" || ext == ".zst.aes" {
 				require.NoError(t, err)
 			}
@@ -377,7 +252,7 @@ func TestFindExistingName_Priority(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("none-exist", func(t *testing.T) {
-		mem := newMemoryStorage()
+		mem := NewInMemoryStorage()
 		vs, err := NewVariadicStorage(mem, alg, ".gz")
 		require.NoError(t, err)
 
@@ -386,9 +261,9 @@ func TestFindExistingName_Priority(t *testing.T) {
 	})
 
 	t.Run("plain-vs-gz-priority", func(t *testing.T) {
-		mem := newMemoryStorage()
-		mem.data["file"] = []byte("plain")
-		mem.data["file.gz"] = []byte("gz")
+		mem := NewInMemoryStorage()
+		mem.Files["file"] = []byte("plain")
+		mem.Files["file.gz"] = []byte("gz")
 
 		vs, err := NewVariadicStorage(mem, alg, ".gz")
 		require.NoError(t, err)
@@ -399,10 +274,10 @@ func TestFindExistingName_Priority(t *testing.T) {
 	})
 
 	t.Run("gz.aes-highest-priority", func(t *testing.T) {
-		mem := newMemoryStorage()
-		mem.data["file"] = []byte("plain")
-		mem.data["file.gz"] = []byte("gz")
-		mem.data["file.gz.aes"] = []byte("gz.aes")
+		mem := NewInMemoryStorage()
+		mem.Files["file"] = []byte("plain")
+		mem.Files["file.gz"] = []byte("gz")
+		mem.Files["file.gz.aes"] = []byte("gz.aes")
 
 		vs, err := NewVariadicStorage(mem, alg, ".gz.aes")
 		require.NoError(t, err)
@@ -445,7 +320,7 @@ func TestVariadicStorage_PutGet_RoundTrip_AllWriteExts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mem := newMemoryStorage()
+			mem := NewInMemoryStorage()
 			vs, err := NewVariadicStorage(mem, tt.alg, tt.writeExt)
 			require.NoError(t, err)
 
@@ -457,8 +332,8 @@ func TestVariadicStorage_PutGet_RoundTrip_AllWriteExts(t *testing.T) {
 
 			// Ensure a single physical object with encoded name exists
 			expectedKey := path + tt.writeExt
-			require.Contains(t, mem.data, expectedKey)
-			require.Len(t, mem.data, 1)
+			require.Contains(t, mem.Files, expectedKey)
+			require.Len(t, mem.Files, 1)
 
 			// Exists by logical name
 			ok, err := vs.Exists(ctx, path)
@@ -501,18 +376,18 @@ func TestVariadicStorage_Delete_RemovesAllVariants(t *testing.T) {
 		AES:  aes,
 	}
 
-	mem := newMemoryStorage()
-	mem.data["wal/seg"] = []byte("plain")
-	mem.data["wal/seg.gz"] = []byte("gz")
-	mem.data["wal/seg.gz.aes"] = []byte("gz.aes")
-	mem.data["wal/seg.aes"] = []byte("aes")
+	mem := NewInMemoryStorage()
+	mem.Files["wal/seg"] = []byte("plain")
+	mem.Files["wal/seg.gz"] = []byte("gz")
+	mem.Files["wal/seg.gz.aes"] = []byte("gz.aes")
+	mem.Files["wal/seg.aes"] = []byte("aes")
 
 	vs, err := NewVariadicStorage(mem, alg, ".gz.aes")
 	require.NoError(t, err)
 
 	require.NoError(t, vs.Delete(ctx, "wal/seg"))
 
-	for k := range mem.data {
+	for k := range mem.Files {
 		if strings.HasPrefix(k, "wal/seg") {
 			t.Fatalf("expected no wal/seg* variants, found %q", k)
 		}
@@ -530,10 +405,10 @@ func TestVariadicStorage_DeleteAllBulk_LogicalNames(t *testing.T) {
 		Gzip: gzipPair,
 	}
 
-	mem := newMemoryStorage()
-	mem.data["bulk/f1.gz"] = []byte("1")
-	mem.data["bulk/f2.gz"] = []byte("2")
-	mem.data["bulk/f3.gz"] = []byte("3")
+	mem := NewInMemoryStorage()
+	mem.Files["bulk/f1.gz"] = []byte("1")
+	mem.Files["bulk/f2.gz"] = []byte("2")
+	mem.Files["bulk/f3.gz"] = []byte("3")
 
 	vs, err := NewVariadicStorage(mem, alg, ".gz")
 	require.NoError(t, err)
@@ -542,9 +417,9 @@ func TestVariadicStorage_DeleteAllBulk_LogicalNames(t *testing.T) {
 	require.NoError(t, err)
 
 	// Only bulk/f2.gz should remain
-	_, ok1 := mem.data["bulk/f1.gz"]
-	_, ok3 := mem.data["bulk/f3.gz"]
-	_, ok2 := mem.data["bulk/f2.gz"]
+	_, ok1 := mem.Files["bulk/f1.gz"]
+	_, ok3 := mem.Files["bulk/f3.gz"]
+	_, ok2 := mem.Files["bulk/f2.gz"]
 
 	assert.False(t, ok1)
 	assert.False(t, ok3)
@@ -564,8 +439,8 @@ func TestVariadicStorage_Exists_AnyVariant(t *testing.T) {
 		AES:  aes,
 	}
 
-	mem := newMemoryStorage()
-	mem.data["wal/seg.gz.aes"] = []byte("data")
+	mem := NewInMemoryStorage()
+	mem.Files["wal/seg.gz.aes"] = []byte("data")
 
 	vs, err := NewVariadicStorage(mem, alg, ".gz.aes")
 	require.NoError(t, err)
@@ -596,11 +471,11 @@ func TestVariadicStorage_List_RewritesLogicalNames_NoDedup(t *testing.T) {
 		AES:  aes,
 	}
 
-	mem := newMemoryStorage()
-	mem.data["p/a.gz"] = []byte("1")
-	mem.data["p/a.gz.aes"] = []byte("2")
-	mem.data["p/b"] = []byte("3")
-	mem.data["p/b.aes"] = []byte("4")
+	mem := NewInMemoryStorage()
+	mem.Files["p/a.gz"] = []byte("1")
+	mem.Files["p/a.gz.aes"] = []byte("2")
+	mem.Files["p/b"] = []byte("3")
+	mem.Files["p/b.aes"] = []byte("4")
 
 	vs, err := NewVariadicStorage(mem, alg, ".gz.aes")
 	require.NoError(t, err)
@@ -630,9 +505,9 @@ func TestVariadicStorage_ListInfo_RewritesPath(t *testing.T) {
 		AES:  aes,
 	}
 
-	mem := newMemoryStorage()
-	mem.data["p/a.gz.aes"] = []byte("1")
-	mem.data["p/c"] = []byte("2")
+	mem := NewInMemoryStorage()
+	mem.Files["p/a.gz.aes"] = []byte("1")
+	mem.Files["p/c"] = []byte("2")
 
 	vs, err := NewVariadicStorage(mem, alg, ".gz.aes")
 	require.NoError(t, err)
@@ -647,25 +522,4 @@ func TestVariadicStorage_ListInfo_RewritesPath(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, []string{"p/a", "p/c"}, paths)
-}
-
-func TestVariadicStorage_ListTopLevelDirs_Delegates(t *testing.T) {
-	ctx := context.Background()
-
-	alg := Algorithms{} // plain is fine
-	mem := newMemoryStorage()
-	mem.dirs["root/app"] = true
-	mem.dirs["root/db"] = true
-	mem.dirs["other"] = true
-
-	vs, err := NewVariadicStorage(mem, alg, "")
-	require.NoError(t, err)
-
-	got, err := vs.ListTopLevelDirs(ctx, "root")
-	require.NoError(t, err)
-
-	assert.Equal(t, map[string]bool{
-		"root/app": true,
-		"root/db":  true,
-	}, got)
 }

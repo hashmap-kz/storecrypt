@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +44,7 @@ func (s *InMemoryStorage) Get(_ context.Context, path string) (io.ReadCloser, er
 
 	data, ok := s.Files[path]
 	if !ok {
-		return nil, errors.New("file not found")
+		return nil, fs.ErrNotExist
 	}
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
@@ -87,7 +88,7 @@ func (s *InMemoryStorage) Delete(_ context.Context, path string) error {
 	defer s.mu.Unlock()
 
 	if _, ok := s.Files[path]; !ok {
-		return errors.New("file not found")
+		return fs.ErrNotExist
 	}
 	delete(s.Files, path)
 	return nil
