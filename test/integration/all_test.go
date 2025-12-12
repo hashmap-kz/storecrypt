@@ -22,7 +22,7 @@ func impls(dir, subpath string) map[string]storage.Storage {
 	// Helpers to create *isolated* backends per storage name.
 	mkLocal := func(name string) storage.Storage {
 		s, err := storage.NewLocal(&storage.LocalStorageOpts{
-			BaseDir:      filepath.Join(dir, subpath, name),
+			BaseDir:      filepath.ToSlash(filepath.Join(dir, subpath, name)),
 			FsyncOnWrite: false,
 		})
 		if err != nil {
@@ -35,14 +35,14 @@ func impls(dir, subpath string) map[string]storage.Storage {
 		return storage.NewS3Storage(
 			createS3Client(),
 			"backups",
-			filepath.Join(subpath, name),
+			filepath.ToSlash(filepath.Join(subpath, name)),
 		)
 	}
 
 	mkSFTP := func(name string) storage.Storage {
 		return storage.NewSFTPStorage(
 			createSftpClient(),
-			filepath.Join(subpath, name),
+			filepath.ToSlash(filepath.Join(subpath, name)),
 		)
 	}
 

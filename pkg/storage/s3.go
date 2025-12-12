@@ -27,7 +27,7 @@ func NewS3Storage(client *s3.Client, bucket, prefix string) Storage {
 	return &s3Storage{
 		client:   client,
 		bucket:   bucket,
-		prefix:   strings.TrimPrefix(prefix, "/"),
+		prefix:   filepath.ToSlash(strings.TrimPrefix(prefix, "/")),
 		uploader: CreateUploader(client, 5242880, 2), // TODO:cfg
 	}
 }
@@ -94,7 +94,7 @@ func (s *s3Storage) List(ctx context.Context, remotePath string) ([]string, erro
 			if err != nil {
 				return nil, err
 			}
-			objects = append(objects, rel)
+			objects = append(objects, filepath.ToSlash(rel))
 		}
 	}
 
@@ -125,7 +125,7 @@ func (s *s3Storage) ListInfo(ctx context.Context, remotePath string) ([]FileInfo
 			rel = strings.TrimPrefix(rel, "/")
 
 			objects = append(objects, FileInfo{
-				Path:    rel,
+				Path:    filepath.ToSlash(rel),
 				ModTime: aws.ToTime(obj.LastModified),
 				Size:    aws.ToInt64(obj.Size),
 			})
