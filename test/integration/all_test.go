@@ -362,7 +362,100 @@ func TestStorage_PutObjectsWithPrefixes(t *testing.T) {
 	}
 }
 
-func TestStorage_HighLoad(t *testing.T) {
+func TestStorage_Rename(t *testing.T) {
+	ctx := context.TODO()
+	storages := initStoragesT(t, t.Name())
+
+	for name, store := range storages {
+		t.Run(name, func(t *testing.T) {
+			src := "rename/src.txt"
+			dst := "rename/dst.txt"
+			content := []byte("rename me please")
+
+			// Ensure clean state
+			require.NoError(t, store.DeleteAll(ctx, ""), "[%s] DeleteAll before test failed", name)
+
+			// Put source
+			err := store.Put(ctx, src, bytes.NewReader(content))
+			require.NoError(t, err, "[%s] Put(src) failed", name)
+
+			// Sanity: src exists, dst does not
+			exists, err := store.Exists(ctx, src)
+			require.NoError(t, err, "[%s] Exists(src) failed", name)
+			assert.True(t, exists, "[%s] src should exist before Rename", name)
+
+			exists, err = store.Exists(ctx, dst)
+			require.NoError(t, err, "[%s] Exists(dst) failed", name)
+			assert.False(t, exists, "[%s] dst should not exist before Rename", name)
+
+			// Do rename
+			err = store.Rename(ctx, src, dst)
+			require.NoError(t, err, "[%s] Rename failed", name)
+
+			// src should be gone
+			exists, err = store.Exists(ctx, src)
+			require.NoError(t, err, "[%s] Exists(src) after Rename failed", name)
+			assert.False(t, exists, "[%s] src should not exist after Rename", name)
+
+			// dst should exist
+			exists, err = store.Exists(ctx, dst)
+			require.NoError(t, err, "[%s] Exists(dst) after Rename failed", name)
+			assert.True(t, exists, "[%s] dst should exist after Rename", name)
+
+			// Content must be preserved
+			r, err := store.Get(ctx, dst)
+			require.NoError(t, err, "[%s] Get(dst) failed", name)
+
+			readContent, err := io.ReadAll(r)
+			require.NoError(t, err)
+			require.NoError(t, r.Close())
+			assert.Equal(t, content, readContent, "[%s] content mismatch after Rename", name)
+
+			// List under "rename" should show only dst
+			listed, err := store.List(ctx, "rename")
+			require.NoError(t, err, "[%s] List(\"rename\") failed", name)
+			assert.ElementsMatch(t, []string{dst}, listed, "[%s] List result mismatch after Rename", name)
+		})
+	}
+}
+
+func TestStorage_RenameSamePathNoop(t *testing.T) {
+	ctx := context.TODO()
+	storages := initStoragesT(t, t.Name())
+
+	for name, store := range storages {
+		t.Run(name, func(t *testing.T) {
+			path := "rename-noop/file.txt"
+			content := []byte("same path rename")
+
+			// Ensure clean state
+			require.NoError(t, store.DeleteAll(ctx, ""), "[%s] DeleteAll before test failed", name)
+
+			// Put file
+			err := store.Put(ctx, path, bytes.NewReader(content))
+			require.NoError(t, err, "[%s] Put failed", name)
+
+			// Rename to itself should be a no-op and not error
+			err = store.Rename(ctx, path, path)
+			require.NoError(t, err, "[%s] Rename(path, path) failed", name)
+
+			// Still exists
+			exists, err := store.Exists(ctx, path)
+			require.NoError(t, err, "[%s] Exists failed", name)
+			assert.True(t, exists, "[%s] file missing after noop Rename", name)
+
+			// Content unchanged
+			r, err := store.Get(ctx, path)
+			require.NoError(t, err, "[%s] Get failed", name)
+			read, err := io.ReadAll(r)
+			require.NoError(t, err)
+			require.NoError(t, r.Close())
+			assert.Equal(t, content, read, "[%s] content changed after noop Rename", name)
+		})
+	}
+}
+
+func TestStorage_HighLoad100(t *testing.T) {
 	ctx := context.TODO()
 	storages := initStoragesT(t, t.Name())
 

@@ -88,6 +88,18 @@ func (ts *TransformingStorage) ListTopLevelDirs(ctx context.Context, prefix stri
 	return ts.Backend.ListTopLevelDirs(ctx, prefix)
 }
 
+func (ts *TransformingStorage) Rename(ctx context.Context, oldRemotePath, newRemotePath string) error {
+	// Normalize and apply transform extension for both paths
+	oldEncoded := ts.encodePath(oldRemotePath)
+	newEncoded := ts.encodePath(newRemotePath)
+
+	if oldEncoded == newEncoded {
+		return nil
+	}
+
+	return ts.Backend.Rename(ctx, oldEncoded, newEncoded)
+}
+
 // compress/encrypt wrappers
 
 func (ts *TransformingStorage) wrapWrite(in io.Reader) (io.Reader, error) {

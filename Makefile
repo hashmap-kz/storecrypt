@@ -27,6 +27,11 @@ test-integ:
 	@cd test/integration/environ && bash run.sh
 	go test -tags=integration -v ./test/integration/... | tee test-integ-fast.log
 
+.PHONY: test-integ-highload
+test-integ-highload:
+	@cd test/integration/environ && bash run.sh
+	go test -tags=integration_highload -v ./test/integration/... | tee test-integ-highload.log
+
 .PHONY: teardown-integ
 teardown-integ:
 	@cd test/integration/environ && bash teardown.sh

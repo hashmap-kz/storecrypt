@@ -9,6 +9,7 @@ import (
 type FileInfo struct {
 	Path    string
 	ModTime time.Time
+	Size    int64
 }
 
 // Storage is an interface for handling remote file storage.
@@ -42,4 +43,8 @@ type Storage interface {
 
 	// ListTopLevelDirs retrieves ONLY directories at a given prefix path.
 	ListTopLevelDirs(ctx context.Context, prefix string) (map[string]bool, error)
+
+	// Rename moves/renames a single object from oldRemotePath to newRemotePath.
+	// For S3 this is implemented as copy+delete (not recursive prefix rename).
+	Rename(ctx context.Context, oldRemotePath, newRemotePath string) error
 }

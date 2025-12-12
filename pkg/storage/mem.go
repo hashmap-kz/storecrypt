@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +44,7 @@ func (s *InMemoryStorage) Get(_ context.Context, path string) (io.ReadCloser, er
 
 	data, ok := s.Files[path]
 	if !ok {
-		return nil, errors.New("file not found")
+		return nil, fs.ErrNotExist
 	}
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
@@ -70,11 +71,12 @@ func (s *InMemoryStorage) ListInfo(_ context.Context, path string) ([]FileInfo, 
 	var infos []FileInfo
 	prefix := strings.TrimSuffix(path, "/") + "/"
 
-	for name := range s.Files {
+	for name, data := range s.Files {
 		if strings.HasPrefix(name, prefix) {
 			infos = append(infos, FileInfo{
 				Path:    name,
 				ModTime: time.Now(),
+				Size:    int64(len(data)),
 			})
 		}
 	}
@@ -86,7 +88,7 @@ func (s *InMemoryStorage) Delete(_ context.Context, path string) error {
 	defer s.mu.Unlock()
 
 	if _, ok := s.Files[path]; !ok {
-		return errors.New("file not found")
+		return fs.ErrNotExist
 	}
 	delete(s.Files, path)
 	return nil
@@ -161,4 +163,38 @@ func (s *InMemoryStorage) ListTopLevelDirs(ctx context.Context, prefix string) (
 	}
 
 	return result, nil
+}
+
+func (s *InMemoryStorage) Rename(ctx context.Context, oldRemotePath, newRemotePath string) error {
+	if oldRemotePath == newRemotePath {
+		return nil
+	}
+
+	// Quick ctx check before locking
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check again after we hold the lock in case caller cancels while waiting
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	data, ok := s.Files[oldRemotePath]
+	if !ok {
+		return errors.New("file not found")
+	}
+
+	// Move entry under new key
+	s.Files[newRemotePath] = data
+	delete(s.Files, oldRemotePath)
+
+	return nil
 }

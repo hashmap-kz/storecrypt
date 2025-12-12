@@ -333,3 +333,36 @@ func (vs *VariadicStorage) ListTopLevelDirs(ctx context.Context, prefix string) 
 	prefix = filepath.ToSlash(prefix)
 	return vs.Backend.ListTopLevelDirs(ctx, prefix)
 }
+
+func (vs *VariadicStorage) Rename(ctx context.Context, oldRemotePath, newRemotePath string) error {
+	// Normalize and strip transform extensions to get logical names
+	oldBase := vs.decodePath(filepath.ToSlash(oldRemotePath))
+	newBase := vs.decodePath(filepath.ToSlash(newRemotePath))
+
+	if oldBase == newBase {
+		return nil
+	}
+
+	var lastErr error
+
+	for _, ext := range vs.supportedExts() {
+		oldPhys := oldBase + ext
+		newPhys := newBase + ext
+
+		// Check if this physical variant exists
+		ok, err := vs.Backend.Exists(ctx, oldPhys)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if !ok {
+			continue
+		}
+
+		if err := vs.Backend.Rename(ctx, oldPhys, newPhys); err != nil {
+			lastErr = err
+		}
+	}
+
+	return lastErr
+}
