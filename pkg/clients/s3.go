@@ -63,6 +63,9 @@ func NewS3Client(s3Config *S3Config) (*S3Client, error) {
 		return nil, err
 	}
 
+	cfg.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+	cfg.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(s3Config.EndpointURL)
 		o.UsePathStyle = s3Config.UsePathStyle
