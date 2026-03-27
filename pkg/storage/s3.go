@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
@@ -18,17 +18,22 @@ type s3Storage struct {
 	client   *s3.Client
 	bucket   string
 	prefix   string
-	uploader *manager.Uploader
+	uploader *transfermanager.Client
 }
 
 var _ Storage = &s3Storage{}
 
 func NewS3Storage(client *s3.Client, bucket, prefix string) Storage {
+	// TODO: config
+	tmClient := transfermanager.New(client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = 5242880
+		o.Concurrency = 2
+	})
 	return &s3Storage{
 		client:   client,
 		bucket:   bucket,
 		prefix:   filepath.ToSlash(strings.TrimPrefix(prefix, "/")),
-		uploader: CreateUploader(client, 5242880, 2), // TODO:cfg
+		uploader: tmClient,
 	}
 }
 
@@ -37,23 +42,25 @@ func (s *s3Storage) fullPath(path string) string {
 }
 
 // CreateUploader creates a new S3 uploader with the given part size and concurrency
-func CreateUploader(client *s3.Client, partsize int64, concurrency int) *manager.Uploader {
-	return manager.NewUploader(client, func(u *manager.Uploader) {
-		u.PartSize = partsize
-		u.Concurrency = concurrency
+func CreateUploader(client *s3.Client, partsize int64, concurrency int) *transfermanager.Client {
+	// TODO: config
+	tmClient := transfermanager.New(client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = partsize
+		o.Concurrency = concurrency
 	})
+	return tmClient
 }
 
 func (s *s3Storage) Put(ctx context.Context, remotePath string, r io.Reader) error {
 	remotePath = s.fullPath(remotePath)
 
-	objInput := &s3.PutObjectInput{
+	objInput := &transfermanager.UploadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(remotePath),
 		Body:   r,
 	}
 
-	_, err := s.uploader.Upload(ctx, objInput)
+	_, err := s.uploader.UploadObject(ctx, objInput)
 	if err != nil {
 		return err
 	}
