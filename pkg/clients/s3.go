@@ -11,14 +11,30 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
+type RequestChecksumCalculation int
+
+const (
+	// RequestChecksumCalculationUnset is the unset value for RequestChecksumCalculation
+	RequestChecksumCalculationUnset RequestChecksumCalculation = iota
+
+	// RequestChecksumCalculationWhenSupported indicates request checksum will be calculated
+	// if the operation supports input checksums
+	RequestChecksumCalculationWhenSupported
+
+	// RequestChecksumCalculationWhenRequired indicates request checksum will be calculated
+	// if required by the operation or if user elects to set a checksum algorithm in request
+	RequestChecksumCalculationWhenRequired
+)
+
 type S3Config struct {
-	EndpointURL     string
-	AccessKeyID     string
-	SecretAccessKey string
-	Bucket          string
-	Region          string
-	UsePathStyle    bool
-	DisableSSL      bool
+	EndpointURL                string
+	AccessKeyID                string
+	SecretAccessKey            string
+	Bucket                     string
+	Region                     string
+	UsePathStyle               bool
+	DisableSSL                 bool
+	RequestChecksumCalculation RequestChecksumCalculation
 }
 
 type S3Client struct {
@@ -50,6 +66,7 @@ func NewS3Client(s3Config *S3Config) (*S3Client, error) {
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(s3Config.EndpointURL)
 		o.UsePathStyle = s3Config.UsePathStyle
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculation(s3Config.RequestChecksumCalculation)
 	})
 
 	return &S3Client{
