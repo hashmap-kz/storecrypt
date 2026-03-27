@@ -14,6 +14,18 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
+const (
+	MinS3PartSize     int64 = 5 * 1024 * 1024
+	DefaultS3PartSize int64 = 16 * 1024 * 1024
+	DefaultS3Conc           = 2
+	MaxS3UploadParts  int64 = 10000
+)
+
+type S3Options struct {
+	PartSizeBytes int64
+	Concurrency   int
+}
+
 type s3Storage struct {
 	client   *s3.Client
 	bucket   string
@@ -24,11 +36,28 @@ type s3Storage struct {
 var _ Storage = &s3Storage{}
 
 func NewS3Storage(client *s3.Client, bucket, prefix string) Storage {
-	// TODO: config
+	return NewS3StorageWithOptions(client, bucket, prefix, S3Options{})
+}
+
+func NewS3StorageWithOptions(client *s3.Client, bucket, prefix string, opts S3Options) Storage {
+	partSize := opts.PartSizeBytes
+	if partSize <= 0 {
+		partSize = DefaultS3PartSize
+	}
+	if partSize < MinS3PartSize {
+		partSize = MinS3PartSize
+	}
+
+	concurrency := opts.Concurrency
+	if concurrency <= 0 {
+		concurrency = DefaultS3Conc
+	}
+
 	tmClient := transfermanager.New(client, func(o *transfermanager.Options) {
-		o.PartSizeBytes = 5242880
-		o.Concurrency = 2
+		o.PartSizeBytes = partSize
+		o.Concurrency = concurrency
 	})
+
 	return &s3Storage{
 		client:   client,
 		bucket:   bucket,
@@ -41,14 +70,43 @@ func (s *s3Storage) fullPath(path string) string {
 	return filepath.ToSlash(filepath.Join(s.prefix, path))
 }
 
-// CreateUploader creates a new S3 uploader with the given part size and concurrency
-func CreateUploader(client *s3.Client, partsize int64, concurrency int) *transfermanager.Client {
-	// TODO: config
-	tmClient := transfermanager.New(client, func(o *transfermanager.Options) {
-		o.PartSizeBytes = partsize
+// CreateUploader creates a new S3 uploader with the given part size and concurrency.
+func CreateUploader(client *s3.Client, partSize int64, concurrency int) *transfermanager.Client {
+	if partSize <= 0 {
+		partSize = DefaultS3PartSize
+	}
+	if partSize < MinS3PartSize {
+		partSize = MinS3PartSize
+	}
+	if concurrency <= 0 {
+		concurrency = DefaultS3Conc
+	}
+
+	return transfermanager.New(client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = partSize
 		o.Concurrency = concurrency
 	})
-	return tmClient
+}
+
+// ChooseUploadPartSize returns a safe part size for an expected object size.
+// If size <= 0, it returns a good streaming default.
+func ChooseUploadPartSize(size int64) int64 {
+	if size <= 0 {
+		return DefaultS3PartSize
+	}
+
+	partSize := (size + MaxS3UploadParts - 1) / MaxS3UploadParts
+	if partSize < MinS3PartSize {
+		partSize = MinS3PartSize
+	}
+
+	// round up to whole MiB for cleaner values
+	const mib = int64(1024 * 1024)
+	if rem := partSize % mib; rem != 0 {
+		partSize += mib - rem
+	}
+
+	return partSize
 }
 
 func (s *s3Storage) Put(ctx context.Context, remotePath string, r io.Reader) error {
@@ -62,7 +120,7 @@ func (s *s3Storage) Put(ctx context.Context, remotePath string, r io.Reader) err
 
 	_, err := s.uploader.UploadObject(ctx, objInput)
 	if err != nil {
-		return err
+		return fmt.Errorf("s3 upload %q: %w", remotePath, err)
 	}
 	return nil
 }
