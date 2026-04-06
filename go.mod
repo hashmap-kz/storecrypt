@@ -4,9 +4,9 @@ go 1.25.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.5
-	github.com/aws/aws-sdk-go-v2/config v1.32.13
+	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.12
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.14
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.98.0
 	github.com/hashmap-kz/streamcrypt v1.1.1
 	github.com/pkg/sftp v1.13.10
